@@ -43,6 +43,21 @@ async def lifespan(app: FastAPI):
             await conn.run_sync(Base.metadata.create_all)
             logger.info("Database schema validated and tables verified.")
 
+            # Auto-seed initial enterprise agents if database is empty
+            try:
+                from sqlalchemy import func, select
+                from app.models.agent import Agent
+                from app.database import AsyncSessionLocal
+
+                async with AsyncSessionLocal() as session:
+                    agent_count = (await session.execute(select(func.count(Agent.id)))).scalar()
+                    if agent_count == 0:
+                        logger.info("Empty database detected on boot. Auto-seeding enterprise agents...")
+                        from app.seed import seed_database
+                        await seed_database()
+            except Exception as seed_err:
+                logger.warning("Auto-seed notice (%s).", seed_err)
+
             # Create HNSW index for sub-15ms ANN cosine search (Document §4)
             if dialect_name == "postgresql":
                 try:

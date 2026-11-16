@@ -14,6 +14,19 @@ logger = logging.getLogger(__name__)
 settings = get_settings()
 
 
+def _normalize_db_url(url: str, async_driver: bool = True) -> str:
+    """Ensure standard postgres:// and postgresql:// URLs map correctly to asyncpg or sync driver."""
+    if not url or "sqlite" in url:
+        return url
+    if url.startswith("postgres://"):
+        url = url.replace("postgres://", "postgresql://", 1)
+    if async_driver and url.startswith("postgresql://"):
+        url = url.replace("postgresql://", "postgresql+asyncpg://", 1)
+    elif not async_driver and "+asyncpg" in url:
+        url = url.replace("postgresql+asyncpg://", "postgresql://", 1)
+    return url
+
+
 def _is_postgresql_accessible() -> bool:
     """Check if PostgreSQL credentials and database are reachable."""
     if "sqlite" in settings.DATABASE_URL:
@@ -22,8 +35,9 @@ def _is_postgresql_accessible() -> bool:
     try:
         import psycopg2
 
+        sync_url = _normalize_db_url(settings.DATABASE_URL_SYNC or settings.DATABASE_URL, async_driver=False)
         # Test sync connection with 1-second timeout
-        conn = psycopg2.connect(settings.DATABASE_URL_SYNC, connect_timeout=1)
+        conn = psycopg2.connect(sync_url, connect_timeout=1)
         conn.close()
         return True
     except Exception as e:
@@ -36,7 +50,7 @@ def _is_postgresql_accessible() -> bool:
 
 # Determine active database URL
 if _is_postgresql_accessible():
-    ACTIVE_DATABASE_URL = settings.DATABASE_URL
+    ACTIVE_DATABASE_URL = _normalize_db_url(settings.DATABASE_URL, async_driver=True)
     logger.info("Active database: PostgreSQL + pgvector (1536-dim vectors, HNSW index)")
 else:
     ACTIVE_DATABASE_URL = "sqlite+aiosqlite:///./agentnet.db"
