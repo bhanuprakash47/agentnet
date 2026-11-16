@@ -3,6 +3,7 @@ import { Users, FileText, Target, Activity, Sparkles, RefreshCw } from 'lucide-r
 import StatsCard from '../components/StatsCard';
 import NetworkGraph from '../components/NetworkGraph';
 import FeedbackChart from '../components/FeedbackChart';
+import RoutingPipeline from '../components/RoutingPipeline';
 import { getDashboardStats, getDashboardNetwork } from '../api/client';
 
 export default function Dashboard() {
@@ -100,6 +101,16 @@ export default function Dashboard() {
           color="purple"
         />
       </div>
+
+      {/* 3-Stage Routing Pipeline Funnel */}
+      <RoutingPipeline
+        totalAgents={stats?.total_agents || 9}
+        stageCounts={{
+          stage1: (stats?.total_agents || 9) > 1 ? (stats?.total_agents || 9) - 1 : 8,
+          stage2: 4,
+          stage3: 2,
+        }}
+      />
 
       {/* Main Network Graph */}
       <NetworkGraph nodes={network.nodes} links={network.links} />
